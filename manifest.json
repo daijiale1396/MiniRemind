@@ -1,0 +1,17 @@
+
+{
+  "name": "微提醒 Pro",
+  "short_name": "微提醒",
+  "description": "轻量级桌面定时提醒工具",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1827/1827347.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
