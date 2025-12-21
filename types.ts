@@ -23,6 +23,7 @@ export interface Reminder {
   priority: Priority;
   isCompleted: boolean;
   createdAt: number;
+  soundUrl?: string; // 提示音 URL 或 Base64
 }
 
 export interface AppState {

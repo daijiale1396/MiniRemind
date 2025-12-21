@@ -7,6 +7,7 @@ import ReminderModal from './components/ReminderModal';
 import NotificationBanner from './components/NotificationBanner';
 
 const STORAGE_KEY = 'miniremind_data_v3';
+const DEFAULT_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
 
 const App: React.FC = () => {
   const [reminders, setReminders] = useState<Reminder[]>(() => {
@@ -60,7 +61,9 @@ const App: React.FC = () => {
 
           if (shouldTrigger) {
             setActiveAlert(reminder);
-            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            // Use custom sound if available, otherwise default
+            const soundSrc = reminder.soundUrl || DEFAULT_SOUND;
+            const audio = new Audio(soundSrc);
             audio.play().catch(() => {});
             changed = true;
             return { ...reminder, lastTriggeredAt: nowTs };

@@ -1,7 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-// Added Bell to the import list from lucide-react
-import { X, Calendar, Flag, Clock, RefreshCw, Timer, Droplets, Move, Eye, Coffee, Bell } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Calendar, Flag, Clock, RefreshCw, Timer, Droplets, Move, Eye, Coffee, Bell, Music, Upload, Volume2 } from 'lucide-react';
 import { Reminder, Priority, ReminderCategory, RepeatType } from '../types';
 
 interface ReminderModalProps {
@@ -11,18 +10,63 @@ interface ReminderModalProps {
   initialData: Reminder | null;
 }
 
+const PRESET_SOUNDS = [
+  { name: '默认', url: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3' },
+  { name: '清脆', url: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3' },
+  { name: '数码', url: 'https://assets.mixkit.co/active_storage/sfx/1003/1003-preview.mp3' },
+  { name: '灵动', url: 'https://assets.mixkit.co/active_storage/sfx/999/999-preview.mp3' },
+];
+
+const CATEGORY_CONFIG: Record<ReminderCategory, { label: string; keywords: string[] }> = {
+  general: { label: '通用', keywords: [] },
+  water: { label: '喝水', keywords: ['水', '渴', '饮', 'water'] },
+  stretch: { label: '动一下', keywords: ['动', '站', '走', '运动', '伸展', 'stretch'] },
+  eye: { label: '护眼', keywords: ['眼', '看', '视', '绿', 'eye'] },
+  break: { label: '休息', keywords: ['休', '息', '停', '茶', '咖啡', 'break', 'coffee'] },
+};
+
 const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, onSubmit, initialData }) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    category: 'general' as ReminderCategory,
-    mode: 'once' as 'once' | 'interval',
-    repeatType: 'none' as RepeatType,
-    time: '',
-    startTime: '09:00',
-    endTime: '18:00',
-    intervalMinutes: 30,
-    priority: Priority.Medium,
+  const [formData, setFormData] = useState(() => {
+    if (initialData) {
+      return {
+        title: initialData.title,
+        category: initialData.category || 'general',
+        mode: initialData.mode || 'once',
+        repeatType: initialData.repeatType || 'none',
+        time: initialData.time || '',
+        startTime: initialData.startTime || '09:00',
+        endTime: initialData.endTime || '18:00',
+        intervalMinutes: initialData.intervalMinutes || 30,
+        priority: initialData.priority,
+        soundUrl: initialData.soundUrl || PRESET_SOUNDS[0].url,
+      };
+    }
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 10);
+    const localTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    return {
+      title: '',
+      category: 'general' as ReminderCategory,
+      mode: 'once' as 'once' | 'interval',
+      repeatType: 'none' as RepeatType,
+      time: localTime,
+      startTime: '09:00',
+      endTime: '18:00',
+      intervalMinutes: 30,
+      priority: Priority.Medium,
+      soundUrl: PRESET_SOUNDS[0].url,
+    };
   });
+
+  const [isCustomSound, setIsCustomSound] = useState(() => {
+    if (initialData && initialData.soundUrl) {
+      return !PRESET_SOUNDS.find(s => s.url === initialData.soundUrl);
+    }
+    return false;
+  });
+
+  const userManuallySelected = useRef(!!initialData);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const categories = [
     { id: 'general', label: '通用', icon: <Bell className="w-4 h-4" /> },
@@ -44,21 +88,70 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, onSubmit
         endTime: initialData.endTime || '18:00',
         intervalMinutes: initialData.intervalMinutes || 30,
         priority: initialData.priority,
+        soundUrl: initialData.soundUrl || PRESET_SOUNDS[0].url,
       });
-    } else {
-      const now = new Date();
-      now.setMinutes(now.getMinutes() + 10);
-      const localTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-      setFormData(prev => ({ ...prev, title: '', category: 'general', time: localTime, mode: 'once', repeatType: 'none' }));
+      setIsCustomSound(!!initialData.soundUrl && !PRESET_SOUNDS.find(s => s.url === initialData.soundUrl));
+      userManuallySelected.current = true;
     }
-  }, [initialData, isOpen]);
+  }, [initialData]);
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = e.target.value;
+    setFormData(prev => {
+      let nextCategory = prev.category;
+      if (!userManuallySelected.current && newTitle.trim() !== '') {
+        for (const [id, config] of Object.entries(CATEGORY_CONFIG)) {
+          if (id === 'general') continue;
+          if (config.keywords.some(kw => newTitle.toLowerCase().includes(kw))) {
+            nextCategory = id as ReminderCategory;
+            break;
+          }
+        }
+      }
+      return { ...prev, title: newTitle, category: nextCategory };
+    });
+  };
+
+  const handleCategoryClick = (catId: ReminderCategory, catLabel: string) => {
+    userManuallySelected.current = true;
+    setFormData(prev => {
+      const isDefaultTitle = categories.some(c => c.label === prev.title) || prev.title.trim() === '';
+      return {
+        ...prev,
+        category: catId,
+        title: isDefaultTitle ? (catId === 'general' ? '' : catLabel) : prev.title
+      };
+    });
+  };
+
+  const handleSoundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 500) {
+        alert("文件太大了，请上传小于 500KB 的音频文件。");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        setFormData(prev => ({ ...prev, soundUrl: base64 }));
+        setIsCustomSound(true);
+        previewSound(base64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const previewSound = (url: string) => {
+    const audio = new Audio(url);
+    audio.play().catch(e => console.error("音频播放失败", e));
+  };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}></div>
-      
       <div className="relative bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300">
         <div className="flex items-center justify-between px-8 py-6 border-b border-slate-50">
           <h2 className="text-xl font-black text-slate-800 tracking-tight">{initialData ? '修改提醒' : '新提醒'}</h2>
@@ -68,115 +161,155 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, onSubmit
         </div>
 
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="p-8 space-y-6 max-h-[85vh] overflow-y-auto no-scrollbar">
-          {/* 分类选择 */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setFormData(p => ({ ...p, category: cat.id as any, title: p.title || (cat.id !== 'general' ? cat.label : '') }))}
-                className={`flex flex-col items-center gap-2 px-4 py-3 rounded-2xl transition-all border-2 shrink-0 ${
-                  formData.category === cat.id ? 'border-blue-600 bg-blue-50' : 'border-slate-100 bg-white'
-                }`}
-              >
-                {cat.icon}
-                <span className={`text-[10px] font-bold ${formData.category === cat.id ? 'text-blue-600' : 'text-slate-400'}`}>{cat.label}</span>
-              </button>
-            ))}
+          <div className="space-y-3">
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">选择分类</label>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+              {categories.map(cat => {
+                const isActive = formData.category === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleCategoryClick(cat.id as any, cat.label)}
+                    className={`flex flex-col items-center gap-2 px-4 py-3 rounded-2xl transition-all border-2 shrink-0 ${
+                      isActive ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'
+                    }`}
+                  >
+                    {cat.icon}
+                    <span className="text-xs font-bold">{cat.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">任务名称</label>
-            <input 
-              required autoFocus
-              type="text" 
-              placeholder="做什么？"
-              className="w-full text-2xl font-bold border-none focus:ring-0 outline-none placeholder:text-slate-200"
+          <div className="space-y-3">
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">任务内容</label>
+            <input
+              type="text"
+              required
+              placeholder="你想做点什么？"
+              className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-600 focus:bg-white rounded-3xl outline-none transition-all font-bold"
               value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              onChange={handleTitleChange}
             />
           </div>
 
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => setFormData(p => ({ ...p, mode: 'once' }))}
-              className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${formData.mode === 'once' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+              onClick={() => setFormData(prev => ({ ...prev, mode: 'once' }))}
+              className={`flex items-center justify-center gap-2 py-4 rounded-2xl border-2 transition-all font-bold ${
+                formData.mode === 'once' ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-100 text-slate-400'
+              }`}
             >
-              单次
+              <Clock className="w-4 h-4" /> 单次提醒
             </button>
             <button
               type="button"
-              onClick={() => setFormData(p => ({ ...p, mode: 'interval' }))}
-              className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${formData.mode === 'interval' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+              onClick={() => setFormData(prev => ({ ...prev, mode: 'interval' }))}
+              className={`flex items-center justify-center gap-2 py-4 rounded-2xl border-2 transition-all font-bold ${
+                formData.mode === 'interval' ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-100 text-slate-400'
+              }`}
             >
-              周期重复
+              <RefreshCw className="w-4 h-4" /> 周期重复
             </button>
           </div>
 
           {formData.mode === 'once' ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <Calendar className="w-5 h-5 text-blue-500" />
-                <input 
-                  required
-                  type="datetime-local" 
-                  className="bg-transparent border-none w-full text-sm font-bold outline-none"
-                  value={formData.time}
-                  onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
-                />
-              </div>
+            <div className="space-y-3">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">提醒时间</label>
+              <input
+                type="datetime-local"
+                required
+                className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-600 focus:bg-white rounded-3xl outline-none transition-all font-bold"
+                value={formData.time}
+                onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
+              />
             </div>
           ) : (
-            <div className="space-y-4">
-               <div className="flex bg-slate-100 p-1 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setFormData(p => ({ ...p, repeatType: 'daily' }))}
-                  className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-all ${formData.repeatType === 'daily' || formData.repeatType === 'none' ? 'bg-white text-blue-600' : 'text-slate-500'}`}
-                >
-                  每天
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(p => ({ ...p, repeatType: 'workdays' }))}
-                  className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-all ${formData.repeatType === 'workdays' ? 'bg-white text-blue-600' : 'text-slate-500'}`}
-                >
-                  工作日
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">开始</span>
-                  <input type="time" className="bg-transparent text-sm font-bold w-full outline-none" value={formData.startTime} onChange={e => setFormData(p => ({ ...p, startTime: e.target.value }))} />
+            <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">开始时间</label>
+                  <input
+                    type="time"
+                    className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-600 focus:bg-white rounded-3xl outline-none transition-all font-bold"
+                    value={formData.startTime}
+                    onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                  />
                 </div>
-                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">结束</span>
-                  <input type="time" className="bg-transparent text-sm font-bold w-full outline-none" value={formData.endTime} onChange={e => setFormData(p => ({ ...p, endTime: e.target.value }))} />
+                <div className="space-y-3">
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">结束时间</label>
+                  <input
+                    type="time"
+                    className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-600 focus:bg-white rounded-3xl outline-none transition-all font-bold"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                  />
                 </div>
               </div>
-
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Timer className="w-5 h-5 text-blue-500" />
-                  <span className="text-sm font-bold">间隔分钟</span>
-                </div>
-                <input 
-                  type="number" 
-                  className="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center text-sm font-bold"
+              <div className="space-y-3">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">频率: {formData.intervalMinutes}分钟</label>
+                <input
+                  type="range"
+                  min="5"
+                  max="120"
+                  step="5"
+                  className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
                   value={formData.intervalMinutes}
-                  onChange={e => setFormData(p => ({ ...p, intervalMinutes: parseInt(e.target.value) }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, intervalMinutes: parseInt(e.target.value) }))}
                 />
+              </div>
+              <div className="space-y-3">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">重复频率</label>
+                <div className="flex gap-2">
+                  {['daily', 'workdays'].map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, repeatType: type as RepeatType }))}
+                      className={`flex-1 py-3 rounded-xl border-2 transition-all text-xs font-bold ${
+                        formData.repeatType === type ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-100 text-slate-400'
+                      }`}
+                    >
+                      {type === 'daily' ? '每天' : '工作日'}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          <button 
-            type="submit"
-            className="w-full py-5 bg-slate-900 text-white font-black rounded-[2rem] shadow-2xl hover:bg-blue-600 transition-all active:scale-95"
-          >
-            就这样吧，设好了
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest">提示音</label>
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[10px] flex items-center gap-1 font-black text-blue-600">
+                <Upload className="w-3 h-3" /> 自定义
+              </button>
+              <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleSoundUpload} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {PRESET_SOUNDS.map(sound => {
+                const isActive = !isCustomSound && formData.soundUrl === sound.url;
+                return (
+                  <button
+                    key={sound.name}
+                    type="button"
+                    onClick={() => { setFormData(prev => ({ ...prev, soundUrl: sound.url })); setIsCustomSound(false); previewSound(sound.url); }}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all text-sm font-bold ${
+                      isActive ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-100 text-slate-500'
+                    }`}
+                  >
+                    <Volume2 className="w-4 h-4 opacity-40" /> {sound.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button type="submit" className="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black shadow-xl active:scale-95 transition-all mt-4">
+            {initialData ? '保存修改' : '创建提醒'}
           </button>
         </form>
       </div>

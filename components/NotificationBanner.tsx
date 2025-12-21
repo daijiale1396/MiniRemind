@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { X, Check, PartyPopper, Coffee, Rocket, Zap, Droplets, Move, Eye } from 'lucide-react';
 import { Reminder } from '../types';
 
@@ -44,7 +44,11 @@ const NotificationBanner: React.FC<NotificationBannerProps> = ({ reminder, onClo
   };
 
   const config = categoryConfig[reminder.category || 'general'];
-  const randomMsg = config.messages[Math.floor(Math.random() * config.messages.length)];
+  
+  // 使用 useMemo 确保在同一个提醒周期内，随机文案保持一致
+  const randomMsg = useMemo(() => {
+    return config.messages[Math.floor(Math.random() * config.messages.length)];
+  }, [reminder.id, reminder.lastTriggeredAt, reminder.category]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
