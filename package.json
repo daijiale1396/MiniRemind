@@ -7,10 +7,18 @@
   "author": "MiniRemind Team",
   "scripts": {
     "start": "electron .",
-    "build": "vite build --base=./",
+    "build": "vite build",
     "dist": "npm run build && electron-builder"
   },
+  "dependencies": {
+    "lucide-react": "^0.562.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
     "electron": "^31.0.0",
     "electron-builder": "^24.13.3",
     "typescript": "^5.0.0",
@@ -30,20 +38,12 @@
         {
           "target": "nsis",
           "arch": ["x64"]
-        },
-        {
-          "target": "portable",
-          "arch": ["x64"]
         }
       ],
       "icon": "public/icon.png"
     },
     "directories": {
       "output": "dist_electron"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
     }
   }
 }
