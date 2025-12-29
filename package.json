@@ -7,8 +7,8 @@
   "author": "MiniRemind Team",
   "scripts": {
     "start": "electron .",
-    "build": "vite build",
-    "dist": "electron-builder"
+    "build": "vite build --base=./",
+    "dist": "npm run build && electron-builder"
   },
   "devDependencies": {
     "electron": "^31.0.0",
@@ -19,12 +19,24 @@
   "build": {
     "appId": "com.miniremind.app",
     "productName": "微提醒 Pro",
+    "files": [
+      "dist/**/*",
+      "main.js",
+      "package.json",
+      "public/**/*"
+    ],
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
       ],
-      "icon": "public/icon.ico"
+      "icon": "public/icon.png"
     },
     "directories": {
       "output": "dist_electron"

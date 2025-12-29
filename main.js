@@ -18,15 +18,22 @@ function createWindow() {
       contextIsolation: false,
     },
     backgroundColor: '#f3f3f3',
-    // 允许透明以便后续实现更完美的悬浮效果
     transparent: false, 
   });
 
+  // 这里的路径逻辑根据打包后的结构进行了微调
   const startUrl = process.env.NODE_ENV === 'development' 
     ? 'http://localhost:5173' 
-    : `file://${path.join(__dirname, 'dist/index.html')}`;
+    : `file://${path.join(__dirname, 'dist', 'index.html')}`;
 
   mainWindow.loadURL(startUrl);
+
+  // 生产环境下关闭开发者工具，防止用户误触
+  if (process.env.NODE_ENV !== 'development') {
+    mainWindow.webContents.on('devtools-opened', () => {
+      mainWindow.webContents.closeDevTools();
+    });
+  }
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -41,7 +48,6 @@ function createWindow() {
   });
 }
 
-// 托盘逻辑保持不变
 function createTray() {
   const iconPath = path.join(__dirname, 'public/icon.png');
   const icon = nativeImage.createFromPath(iconPath);
