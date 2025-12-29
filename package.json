@@ -6,6 +6,7 @@
   "description": "轻量级桌面定时提醒工具 - 无需登录，本地运行",
   "author": "MiniRemind Team",
   "scripts": {
+    "dev": "vite",
     "start": "electron .",
     "build": "vite build",
     "dist": "npm run build && electron-builder"
@@ -30,8 +31,7 @@
     "files": [
       "dist/**/*",
       "main.cjs",
-      "package.json",
-      "public/**/*"
+      "package.json"
     ],
     "win": {
       "target": [
