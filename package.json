@@ -1,8 +1,8 @@
-
 {
   "name": "miniremind-pro",
   "version": "1.0.0",
-  "main": "main.js",
+  "type": "module",
+  "main": "main.cjs",
   "description": "轻量级桌面定时提醒工具 - 无需登录，本地运行",
   "author": "MiniRemind Team",
   "scripts": {
@@ -29,7 +29,7 @@
     "productName": "微提醒 Pro",
     "files": [
       "dist/**/*",
-      "main.js",
+      "main.cjs",
       "package.json",
       "public/**/*"
     ],
@@ -37,7 +37,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "public/icon.png"
