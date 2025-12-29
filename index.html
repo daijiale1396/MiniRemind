@@ -1,29 +1,33 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2563eb">
-    <title>微提醒 Pro | 桌面版</title>
+    <title>微提醒 Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --system-bg: #f3f3f3;
-            --mica-bg: rgba(255, 255, 255, 0.7);
-        }
-        body {
-            font-family: 'Segoe UI', "Microsoft YaHei", sans-serif;
-            background-color: var(--system-bg);
-            height: 100vh;
+        body, html {
             margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
             overflow: hidden;
+            background-color: transparent;
         }
-        .mica-effect {
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            background-color: var(--mica-bg);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+        #root {
+            width: 100vw;
+            height: 100vh;
+        }
+        /* 隐藏滚动条但保留功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
     </style>
 <script type="importmap">
@@ -39,8 +43,8 @@
 }
 </script>
 </head>
-<body class="flex items-center justify-center p-0 sm:p-4">
-    <div id="root" class="w-full h-full max-w-5xl shadow-2xl sm:rounded-2xl overflow-hidden border border-black/5"></div>
+<body class="bg-white">
+    <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
