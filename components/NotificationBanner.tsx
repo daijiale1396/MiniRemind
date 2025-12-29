@@ -51,7 +51,7 @@ const NotificationBanner: React.FC<NotificationBannerProps> = ({ reminder, onClo
   }, [reminder.id, reminder.lastTriggeredAt, reminder.category]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl animate-in fade-in duration-500" onClick={onClose}></div>
       
       <div className="relative bg-white w-full max-w-sm rounded-[3rem] shadow-[0_32px_64px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-90 slide-in-from-bottom-20 duration-500">
