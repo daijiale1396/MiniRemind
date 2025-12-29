@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Bell, Calendar, CheckCircle2, Clock, Plus, Search, Filter, Trash2, CalendarDays, RefreshCw, Settings, Info, ShieldCheck, Database, LayoutDashboard, TrendingUp, Target, Minimize2, Maximize2, Activity, Palette } from 'lucide-react';
+import { Bell, Calendar, CheckCircle2, Clock, Plus, Search, Filter, Trash2, CalendarDays, RefreshCw, Settings, Info, ShieldCheck, Database, LayoutDashboard, TrendingUp, Target, Minimize2, Maximize2, Activity, Palette, Github } from 'lucide-react';
 import { Reminder, Priority, HealthGoal, WidgetTheme } from './types';
 import ReminderCard from './components/ReminderCard';
 import ReminderModal from './components/ReminderModal';
@@ -199,7 +199,7 @@ const App: React.FC = () => {
               ))}
             </nav>
 
-            <div className="mt-auto pt-6 border-t border-black/5">
+            <div className="mt-auto pt-6 border-t border-black/5 space-y-4">
               <div className="flex items-center gap-3 p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
                 <ShieldCheck className="w-5 h-5" />
                 <div className="flex-1">
@@ -207,6 +207,16 @@ const App: React.FC = () => {
                     <p className="text-[9px] opacity-70">数据仅存放于此设备</p>
                 </div>
               </div>
+              
+              <a 
+                href="https://github.com/daijiale1396/MiniRemind" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-2 text-[10px] font-black text-slate-400 hover:text-blue-600 transition-all uppercase tracking-widest group"
+              >
+                <Github className="w-3 h-3 group-hover:rotate-[360deg] transition-transform duration-500" />
+                <span>View on GitHub</span>
+              </a>
             </div>
           </aside>
 
