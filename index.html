@@ -50,19 +50,18 @@
 <script type="importmap">
 {
   "imports": {
-    "vite": "https://esm.sh/vite@^7.3.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
 <body class="flex items-center justify-center p-0 sm:p-4">
     <div id="root" class="w-full h-full max-w-5xl shadow-2xl sm:rounded-2xl overflow-hidden border border-black/5"></div>
-    <!-- 必须显式引入入口文件，Vite 打包才会有内容 -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

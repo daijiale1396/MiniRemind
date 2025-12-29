@@ -41,11 +41,11 @@
             "x64"
           ]
         }
-      ],
-      "icon": "public/icon.png"
+      ]
     },
     "directories": {
       "output": "dist_electron"
-    }
+    },
+    "asar": true
   }
 }
