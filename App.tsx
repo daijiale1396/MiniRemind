@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Bell, Calendar, CheckCircle2, Clock, Plus, Search, Filter, Trash2, CalendarDays, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Bell, Calendar, CheckCircle2, Clock, Plus, Search, Filter, Trash2, CalendarDays, RefreshCw, Settings, Info, ShieldCheck, Database } from 'lucide-react';
 import { Reminder, Priority } from './types';
 import ReminderCard from './components/ReminderCard';
 import ReminderModal from './components/ReminderModal';
@@ -19,6 +19,32 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [activeAlert, setActiveAlert] = useState<Reminder | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'default'
+  );
+
+  const requestNotificationPermission = useCallback(async () => {
+    if (typeof Notification !== 'undefined') {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+    }
+  }, []);
+
+  const showNativeNotification = useCallback((reminder: Reminder) => {
+    if (notificationPermission === 'granted') {
+      const n = new Notification(reminder.title, {
+        body: `提醒时间已到！分类: ${reminder.category === 'general' ? '通用任务' : reminder.category}`,
+        icon: 'https://cdn-icons-png.flaticon.com/512/1827/1827347.png',
+        tag: reminder.id,
+        requireInteraction: true 
+      });
+      n.onclick = () => {
+        window.focus();
+        setActiveAlert(reminder);
+        n.close();
+      };
+    }
+  }, [notificationPermission]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
@@ -28,7 +54,7 @@ const App: React.FC = () => {
     const checkReminders = () => {
       const now = new Date();
       const nowTs = now.getTime();
-      const day = now.getDay(); // 0 是周日, 1-5 是工作日
+      const day = now.getDay();
       const isWorkday = day >= 1 && day <= 5;
       const currentHHmm = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
@@ -36,14 +62,9 @@ const App: React.FC = () => {
         let changed = false;
         const newReminders = prevReminders.map(reminder => {
           if (reminder.isCompleted) return reminder;
-
-          // 周期检查：如果设为工作日但今天不是，则跳过
-          if (reminder.mode === 'interval' && reminder.repeatType === 'workdays' && !isWorkday) {
-            return reminder;
-          }
+          if (reminder.mode === 'interval' && reminder.repeatType === 'workdays' && !isWorkday) return reminder;
 
           let shouldTrigger = false;
-
           if (reminder.mode === 'once') {
             const reminderTime = new Date(reminder.time);
             if (nowTs >= reminderTime.getTime() && (nowTs - reminderTime.getTime() < 60000) && !reminder.lastTriggeredAt) {
@@ -61,7 +82,7 @@ const App: React.FC = () => {
 
           if (shouldTrigger) {
             setActiveAlert(reminder);
-            // Use custom sound if available, otherwise default
+            showNativeNotification(reminder);
             const soundSrc = reminder.soundUrl || DEFAULT_SOUND;
             const audio = new Audio(soundSrc);
             audio.play().catch(() => {});
@@ -74,9 +95,10 @@ const App: React.FC = () => {
       });
     };
 
+    // 提升扫描频率至 5秒 每次
     const interval = setInterval(checkReminders, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [showNativeNotification]);
 
   const addOrUpdateReminder = (data: any) => {
     if (editingReminder) {
@@ -114,74 +136,106 @@ const App: React.FC = () => {
   }, [reminders, searchQuery, activeFilter]);
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] text-slate-900 flex flex-col max-w-2xl mx-auto shadow-xl">
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-100 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-1.5 rounded-lg shadow-sm">
-              <Bell className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="font-bold text-lg tracking-tight">微提醒 Pro</h1>
+    <div className="flex w-full h-full bg-[#f3f3f3] text-slate-900 mica-effect">
+      <aside className="w-64 flex flex-col border-r border-black/5 qt-sidebar p-6 shrink-0">
+        <div className="flex items-center gap-3 mb-10">
+          <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/20">
+            <Bell className="w-6 h-6 text-white" />
           </div>
-          <button 
-            onClick={() => { setEditingReminder(null); setIsModalOpen(true); }}
-            className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-transform active:scale-95 shadow-md"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+          <div>
+            <h1 className="font-bold text-base leading-tight">微提醒</h1>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Professional Edition</p>
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <nav className="space-y-1.5 flex-1">
+          <p className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">我的视图</p>
+          {[
+            { id: 'upcoming', label: '待办任务', icon: Clock },
+            { id: 'all', label: '所有任务', icon: Calendar },
+            { id: 'completed', label: '已完成', icon: CheckCircle2 }
+          ].map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveFilter(item.id as any)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                activeFilter === item.id ? 'bg-white shadow-sm text-blue-600 border border-black/5' : 'text-slate-500 hover:bg-black/5'
+              }`}
+            >
+              <item.icon className="w-4 h-4" />
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="mt-auto space-y-4">
+          <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-bold border border-emerald-100">
+             <Database className="w-3.5 h-3.5" />
+             本地模式：数据无需登录
+          </div>
+          {notificationPermission !== 'granted' && (
+            <button 
+              onClick={requestNotificationPermission}
+              className="w-full flex items-center gap-2 p-3 bg-amber-50 text-amber-700 rounded-xl text-[11px] font-bold border border-amber-200 hover:bg-amber-100 transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              开启 Windows 系统通知
+            </button>
+          )}
+          <div className="p-4 bg-white/40 rounded-2xl border border-white/60">
+            <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase mb-2">
+              <Info className="w-3 h-3" />
+              运行状态
+            </div>
+            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+              高精度扫描已开启。系统将每 5 秒检测一次，支持 1 分钟短频提醒。
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col min-w-0 bg-white/50">
+        <header className="p-8 pb-4 flex items-center justify-between">
+          <div className="flex-1 max-w-md relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text" 
-              placeholder="搜索你的任务..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-100/50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none"
+              placeholder="搜索任务或分类..."
+              className="w-full pl-11 pr-4 py-3 bg-black/5 border-none rounded-2xl focus:ring-2 focus:ring-blue-500/20 text-sm font-medium outline-none transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </div>
+          <button 
+            onClick={() => { setEditingReminder(null); setIsModalOpen(true); }}
+            className="ml-4 flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            新建提醒
+          </button>
+        </header>
 
-        <div className="flex gap-4 mt-4 overflow-x-auto no-scrollbar">
-          {[
-            { id: 'upcoming', label: '进行中' },
-            { id: 'all', label: '全部' },
-            { id: 'completed', label: '已完成' }
-          ].map(f => (
-            <button
-              key={f.id}
-              onClick={() => setActiveFilter(f.id as any)}
-              className={`text-sm font-medium whitespace-nowrap px-1 pb-2 border-b-2 transition-colors ${
-                activeFilter === f.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        <div className="flex-1 overflow-y-auto p-8 pt-4 space-y-4 no-scrollbar">
+          {filteredReminders.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredReminders.map(reminder => (
+                <div key={reminder.id} className="animate-slide-in">
+                  <ReminderCard 
+                    reminder={reminder}
+                    onToggle={() => updateReminderStatus(reminder.id, { isCompleted: !reminder.isCompleted })}
+                    onDelete={() => deleteReminder(reminder.id)}
+                    onEdit={() => { setEditingReminder(reminder); setIsModalOpen(true); }}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full opacity-20 py-20">
+              <CalendarDays className="w-16 h-16 mb-4" />
+              <p className="text-lg font-bold">暂无相关提醒</p>
+            </div>
+          )}
         </div>
-      </header>
-
-      <main className="flex-1 p-4 space-y-4">
-        {filteredReminders.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3">
-            {filteredReminders.map(reminder => (
-              <ReminderCard 
-                key={reminder.id}
-                reminder={reminder}
-                onToggle={() => updateReminderStatus(reminder.id, { isCompleted: !reminder.isCompleted })}
-                onDelete={() => deleteReminder(reminder.id)}
-                onEdit={() => { setEditingReminder(reminder); setIsModalOpen(true); }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 opacity-40">
-            <CalendarDays className="w-12 h-12 mb-2" />
-            <p className="text-sm">空空如也，添加一个提醒吧</p>
-          </div>
-        )}
       </main>
 
       {isModalOpen && (

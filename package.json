@@ -1,23 +1,37 @@
+
 {
-  "name": "微提醒-(miniremind)",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "miniremind-pro",
+  "version": "1.0.0",
+  "main": "main.js",
+  "description": "轻量级桌面定时提醒工具 - 无需登录，本地运行",
+  "author": "MiniRemind Team",
   "scripts": {
-    "dev": "vite",
+    "start": "electron .",
     "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react-dom": "^19.2.3",
-    "@google/genai": "^1.34.0",
-    "lucide-react": "^0.562.0",
-    "react": "^19.2.3"
+    "dist": "electron-builder"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  },
+  "build": {
+    "appId": "com.miniremind.app",
+    "productName": "微提醒 Pro",
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "public/icon.ico"
+    },
+    "directories": {
+      "output": "dist_electron"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
