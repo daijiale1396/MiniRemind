@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Bell, Calendar, CheckCircle2, Clock, Plus, Search, ShieldCheck, Minimize2, Activity, X, Minus, Square } from 'lucide-react';
+import { Bell, Calendar, CheckCircle2, Clock, Plus, Search, ShieldCheck, Activity, X, Minus, Square } from 'lucide-react';
 import { Reminder, Priority, HealthGoal, WidgetTheme } from './types';
 import ReminderCard from './components/ReminderCard';
 import ReminderModal from './components/ReminderModal';
@@ -41,18 +40,19 @@ const App: React.FC = () => {
   const remindersRef = useRef(reminders);
   useEffect(() => { remindersRef.current = reminders; }, [reminders]);
 
-  // 修改窗口控制函数，确保它调用物理接口
+  // 物理窗口控制逻辑
   const handleWindowControl = (cmd: 'minimize' | 'maximize' | 'close') => {
     if (window.electronAPI) {
-      // 如果点击最小化，我们先尝试切换到悬浮猫咪模式
-      if (cmd === 'minimize' && !isFloating) {
-        setIsFloating(true);
-        window.electronAPI.setWindowMode('widget');
-      } else {
-        window.electronAPI.controlWindow(cmd);
-      }
+      window.electronAPI.controlWindow(cmd);
     } else {
-      console.warn("Electron API not found. Running in browser mode.");
+      console.warn("未检测到 Electron 环境，控制指令已拦截");
+    }
+  };
+
+  const handleEnterFloating = () => {
+    setIsFloating(true);
+    if (window.electronAPI) {
+      window.electronAPI.setWindowMode('widget');
     }
   };
 
@@ -145,7 +145,7 @@ const App: React.FC = () => {
 
   return (
     <div className="w-full h-full relative flex flex-col bg-white overflow-hidden text-slate-900 border border-slate-200">
-      {/* 自定义标题栏 - 使用 WebkitAppRegion 进行拖拽控制 */}
+      {/* 自定义标题栏 */}
       <header 
         className="h-10 flex items-center justify-between bg-white border-b border-slate-100 shrink-0 z-[1000] select-none"
         style={{ WebkitAppRegion: 'drag' } as any}
@@ -156,13 +156,22 @@ const App: React.FC = () => {
         </div>
         
         <div className="flex h-full" style={{ WebkitAppRegion: 'no-drag' } as any}>
-          <button onClick={() => handleWindowControl('minimize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors">
+          <button 
+            onClick={() => handleWindowControl('minimize')} 
+            className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors"
+          >
             <Minus className="w-4 h-4" />
           </button>
-          <button onClick={() => handleWindowControl('maximize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors">
+          <button 
+            onClick={() => handleWindowControl('maximize')} 
+            className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors"
+          >
             <Square className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => handleWindowControl('close')} className="w-12 h-full flex items-center justify-center hover:bg-red-500 hover:text-white text-slate-400 transition-colors">
+          <button 
+            onClick={() => handleWindowControl('close')} 
+            className="w-12 h-full flex items-center justify-center hover:bg-red-500 hover:text-white text-slate-400 transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -211,10 +220,19 @@ const App: React.FC = () => {
                 ))}
               </nav>
 
+              <div className="mt-6">
+                <button 
+                  onClick={handleEnterFloating}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold shadow-lg hover:bg-black transition-all"
+                >
+                  <Activity className="w-4 h-4" /> 开启猫咪挂件
+                </button>
+              </div>
+
               <div className="mt-auto">
                 <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 flex items-center gap-3">
                   <ShieldCheck className="w-5 h-5 shrink-0 opacity-70" />
-                  <p className="text-[11px] font-bold leading-tight">提醒服务已在后台<br/>加密运行中</p>
+                  <p className="text-[11px] font-bold leading-tight">提醒服务已在后台<br/>稳定运行中</p>
                 </div>
               </div>
             </aside>
