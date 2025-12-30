@@ -217,19 +217,19 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              <div className="mt-auto space-y-4">
+              <div className="mt-auto space-y-4 pt-4">
                 <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 flex items-center gap-3">
                   <ShieldCheck className="w-5 h-5 shrink-0 opacity-70" />
                   <p className="text-[11px] font-bold leading-tight">提醒服务已在后台<br/>加密运行中</p>
                 </div>
-                {/* 新增 GitHub 链接 */}
+                
                 <a 
                   href="https://github.com/daijiale1396/MiniRemind" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-1 text-[10px] text-slate-400 hover:text-blue-500 transition-colors font-medium group"
+                  className="flex items-center gap-2 px-1 text-[10px] text-slate-400 hover:text-blue-500 transition-colors font-bold group"
                 >
-                  <Github className="w-3 h-3 opacity-70 group-hover:opacity-100" />
+                  <Github className="w-3 h-3 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all" />
                   <span>GitHub @daijiale1396</span>
                 </a>
               </div>

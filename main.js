@@ -14,7 +14,7 @@ function createWindow() {
     transparent: true,
     show: true,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'), // 确保与文件名一致
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     },
@@ -26,7 +26,7 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   }
 
-  // 拦截关闭事件：如果是用户点击 X，则隐藏而非退出
+  // 点击关闭按钮时隐藏窗口而非退出
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -40,7 +40,7 @@ function createWindow() {
 function createTray() {
   if (tray) return;
 
-  // 创建托盘图标。实际生产环境应使用 icon.png，这里创建一个空图标占位
+  // 创建一个空图标作为占位，如果有本地 icon.png 请替换路径
   const icon = nativeImage.createEmpty(); 
   tray = new Tray(icon);
   tray.setToolTip('微提醒 Pro');
@@ -59,8 +59,6 @@ function createTray() {
   ]);
 
   tray.setContextMenu(contextMenu);
-  
-  // 双击托盘显示窗口
   tray.on('double-click', () => {
     mainWindow.show();
   });
@@ -74,8 +72,7 @@ ipcMain.on('control-window', (event, command) => {
     else mainWindow.maximize();
   }
   else if (command === 'close') {
-    // 点击 X 按钮时隐藏窗口
-    mainWindow.hide();
+    mainWindow.hide(); // 点击 UI 上的 X 也是隐藏
   }
 });
 
@@ -85,7 +82,7 @@ ipcMain.on('set-window-mode', (event, mode) => {
     mainWindow.setSize(240, 160);
     mainWindow.setAlwaysOnTop(true);
     mainWindow.setResizable(false);
-    mainWindow.setSkipTaskbar(true); // 挂件模式不在任务栏占位
+    mainWindow.setSkipTaskbar(true);
     
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;

@@ -2,9 +2,8 @@
 {
   "name": "miniremind-pro",
   "version": "1.0.0",
-  "type": "module",
-  "main": "main.cjs",
-  "description": "轻量级桌面定时提醒工具 - ESM 优化版",
+  "description": "轻量级桌面定时提醒工具 - 优化版",
+  "main": "main.js",
   "scripts": {
     "dev": "vite",
     "start": "electron .",
@@ -12,9 +11,9 @@
     "dist": "npm run build && electron-builder"
   },
   "dependencies": {
-    "lucide-react": "^0.562.0",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom": "https://esm.sh/react-dom@^19.2.3"
+    "lucide-react": "^0.462.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "electron": "^31.0.0",
@@ -27,8 +26,8 @@
     "productName": "微提醒 Pro",
     "files": [
       "dist/**/*",
-      "main.cjs",
-      "preload.cjs",
+      "main.js",
+      "preload.js",
       "package.json"
     ],
     "win": {
