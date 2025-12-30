@@ -2,8 +2,8 @@
 {
   "name": "miniremind-pro",
   "version": "1.0.0",
-  "type": "module",
-  "main": "main.cjs",
+  "type": "commonjs",
+  "main": "main.js",
   "description": "轻量级桌面定时提醒工具 - 无需登录，本地运行",
   "author": "MiniRemind Team",
   "scripts": {
@@ -31,8 +31,8 @@
     "productName": "微提醒 Pro",
     "files": [
       "dist/**/*",
-      "main.cjs",
-      "preload.cjs",
+      "main.js",
+      "preload.js",
       "package.json"
     ],
     "win": {
