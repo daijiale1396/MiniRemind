@@ -41,20 +41,21 @@ const App: React.FC = () => {
   const remindersRef = useRef(reminders);
   useEffect(() => { remindersRef.current = reminders; }, [reminders]);
 
-  // 修改窗口控制函数
+  // 修改窗口控制函数，确保它调用物理接口
   const handleWindowControl = (cmd: 'minimize' | 'maximize' | 'close') => {
-    if (!window.electronAPI) return;
-
-    if (cmd === 'minimize') {
-      // 点击最小化按键：进入桌面悬浮模式
-      setIsFloating(true);
-      window.electronAPI.setWindowMode('widget');
+    if (window.electronAPI) {
+      // 如果点击最小化，我们先尝试切换到悬浮猫咪模式
+      if (cmd === 'minimize' && !isFloating) {
+        setIsFloating(true);
+        window.electronAPI.setWindowMode('widget');
+      } else {
+        window.electronAPI.controlWindow(cmd);
+      }
     } else {
-      window.electronAPI.controlWindow(cmd);
+      console.warn("Electron API not found. Running in browser mode.");
     }
   };
 
-  // 退出悬浮模式回到主界面
   const handleExitFloating = () => {
     setIsFloating(false);
     if (window.electronAPI) {
@@ -63,10 +64,10 @@ const App: React.FC = () => {
   };
 
   const triggerSystemNotification = useCallback((reminder: Reminder) => {
-    const title = `⏰ ${reminder.title}`;
+    const title = `⏰ 提醒：${reminder.title}`;
     const body = reminder.mode === 'interval' 
-      ? `提醒时间到啦！(每 ${reminder.intervalMinutes} 分钟)` 
-      : '提醒时间到啦，该动身处理啦！';
+      ? `循环提醒时间到了！` 
+      : '计划任务时间已到。';
     
     if (window.electronAPI) {
       window.electronAPI.sendNotification({ title, body });
@@ -77,7 +78,6 @@ const App: React.FC = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
   }, [reminders]);
 
-  // 提醒检测计时器
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -144,8 +144,8 @@ const App: React.FC = () => {
   }, [reminders]);
 
   return (
-    <div className="w-full h-full relative flex flex-col bg-white overflow-hidden text-slate-900">
-      {/* 沉浸式标题栏：这里是处理物理按键的地方 */}
+    <div className="w-full h-full relative flex flex-col bg-white overflow-hidden text-slate-900 border border-slate-200">
+      {/* 自定义标题栏 - 使用 WebkitAppRegion 进行拖拽控制 */}
       <header 
         className="h-10 flex items-center justify-between bg-white border-b border-slate-100 shrink-0 z-[1000] select-none"
         style={{ WebkitAppRegion: 'drag' } as any}
