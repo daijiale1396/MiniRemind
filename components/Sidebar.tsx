@@ -65,7 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeFilter, setActiveFilter, stats,
         <div className="flex items-center gap-2 text-slate-300 px-2 justify-center group">
           <Github className="w-4 h-4 group-hover:text-slate-600 transition-colors" />
           <a 
-            href="https://github.com/daijiale1396/MiniRemind.git" 
+            href="https://github.com/daijiale1396/MiniRemind" 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-[10px] font-bold tracking-widest hover:text-slate-600 transition-colors"

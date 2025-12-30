@@ -15,6 +15,21 @@ interface FloatingWidgetProps {
 
 type CatState = 'sleeping' | 'chill' | 'active' | 'reminding' | 'triggered';
 
+// 将样式移出组件，解决编译时的字符串解析问题
+const WIDGET_ANIMATIONS = `
+  @keyframes sleep-breath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08, 1.02); } }
+  @keyframes normal-breath { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.05); } }
+  @keyframes cat-jump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
+  @keyframes bubble-in { 
+    0% { transform: translate(-50%, 30px) scale(0.85); opacity: 0; } 
+    100% { transform: translate(-50%, 0) scale(1); opacity: 1; } 
+  }
+  .animate-sleep-breath { animation: sleep-breath 4s infinite ease-in-out; transform-origin: bottom; }
+  .animate-normal-breath { animation: normal-breath 3.5s infinite ease-in-out; transform-origin: bottom; }
+  .animate-cat-jump { animation: cat-jump 0.5s infinite ease-in-out; }
+  .animate-bubble-in { animation: bubble-in 0.6s cubic-bezier(0.2, 1.2, 0.4, 1) forwards; }
+`;
+
 const FloatingWidget: React.FC<FloatingWidgetProps> = ({ 
   reminder, theme, setTheme, onExpand, activeAlert, onCompleteAlert, onCloseAlert 
 }) => {
@@ -23,7 +38,6 @@ const FloatingWidget: React.FC<FloatingWidgetProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const lastInteractionRef = useRef(Date.now());
 
-  // 类别图标映射 (完全匹配图示风格：左图标，双行文字，右确认/关闭)
   const categoryConfigs: any = {
     water: { icon: <Droplets className="w-6 h-6" />, color: "bg-blue-500", label: "补水计划", msg: "摄入水分，保持细胞活力。" },
     stretch: { icon: <Move className="w-6 h-6" />, color: "bg-orange-500", label: "该运动了", msg: "监测到久坐，请起立活动。" },
@@ -34,12 +48,11 @@ const FloatingWidget: React.FC<FloatingWidgetProps> = ({
 
   const currentAlertConfig = activeAlert ? categoryConfigs[activeAlert.category || 'general'] : null;
 
-  // 主题配色
   const themes = {
     glass: { cat: "#475569", accent: "text-slate-700" },
     cyber: { cat: "#1e293b", accent: "text-blue-400" },
     retro: { cat: "#57534e", accent: "text-stone-700" },
-    sakura: { cat: "#7c3aed", accent: "text-purple-600" }
+    sakura: { cat: "#db2777", accent: "text-pink-600" }
   };
   const currentTheme = themes[theme] || themes.glass;
 
@@ -56,12 +69,10 @@ const FloatingWidget: React.FC<FloatingWidgetProps> = ({
       const now = Date.now();
       const idleTime = now - lastInteractionRef.current;
       
-      // 30秒无操作自动吸附到侧边（右侧），猫咪只露出头部和耳朵
       if (idleTime > 30000 && !activeAlert && !isCollapsed) {
         setIsCollapsed(true);
       }
 
-      // 更新倒计时
       if (reminder && !activeAlert) {
         let target: number;
         if (reminder.mode === 'once') {
@@ -107,7 +118,8 @@ const FloatingWidget: React.FC<FloatingWidgetProps> = ({
       className="relative w-full h-full flex items-center justify-center bg-transparent overflow-visible"
       style={{ WebkitAppRegion: 'drag' } as any}
     >
-      {/* 仿图示样式的确认弹窗 (全对齐参考图：大图标，双行文字，蓝check/灰X) */}
+      <style dangerouslySetInnerHTML={{ __html: WIDGET_ANIMATIONS }} />
+      
       {activeAlert && (
         <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[380px] bg-white rounded-full shadow-[0_25px_60px_rgba(0,0,0,0.12)] p-2.5 flex items-center gap-4 animate-bubble-in z-[100] border border-white/50 no-drag">
           <div className={`w-14 h-14 rounded-full ${currentAlertConfig?.color} flex items-center justify-center text-white shrink-0 shadow-lg shadow-black/10`}>
@@ -139,10 +151,7 @@ const FloatingWidget: React.FC<FloatingWidgetProps> = ({
         </div>
       )}
 
-      {/* 猫咪及倒计时面板容器 - 吸附时猫咪露出一半身体 */}
-      <div 
-        className={`flex flex-col items-center group transition-all duration-1000 cubic-bezier(0.23, 1, 0.32, 1) ${isCollapsed ? 'translate-x-[62px] opacity-70 hover:translate-x-[45px] hover:opacity-100' : 'translate-x-0 opacity-100'}`}
-      >
+      <div className={`flex flex-col items-center group transition-all duration-1000 cubic-bezier(0.23, 1, 0.32, 1) ${isCollapsed ? 'translate-x-[62px] opacity-70 hover:translate-x-[45px] hover:opacity-100' : 'translate-x-0 opacity-100'}`}>
         <div className={`relative mb-[-10px] transition-transform duration-500 ${catState === 'triggered' ? 'animate-cat-jump' : ''}`}>
            <svg width="90" height="58" viewBox="0 0 100 60">
               <rect x="20" y="20" width="60" height="40" rx="25" fill={currentTheme.cat} className={catState === 'sleeping' ? 'animate-sleep-breath' : 'animate-normal-breath'} />
@@ -163,31 +172,29 @@ const FloatingWidget: React.FC<FloatingWidgetProps> = ({
            </svg>
         </div>
 
-        {/* 倒计时面板 - 具有 no-drag 确保可点击 */}
         <div className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border bg-white border-slate-100 shadow-2xl transition-all duration-700 ${isCollapsed ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100 shadow-black/5'}`}>
           <div className="flex flex-col pr-3 border-r border-slate-100 leading-tight">
             <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">NEXT</span>
             <span className={`text-xs font-black tabular-nums tracking-tight ${currentTheme.accent}`}>{timeLeft}</span>
           </div>
           <div className="flex gap-1.5 no-drag">
-            <button 
-              onClick={toggleTheme} 
-              className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors group/btn relative z-[110]"
-              title="切换主题"
-            >
+            <button onClick={toggleTheme} className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors group/btn relative z-[110]" title="切换主题">
               <Palette className="w-4 h-4 text-slate-300 group-hover/btn:text-slate-600" />
             </button>
-            <button 
-              onClick={onExpand} 
-              className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors group/btn relative z-[110]"
-              title="回到主界面"
-            >
+            <button onClick={onExpand} className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors group/btn relative z-[110]" title="回到主界面">
               <Maximize2 className="w-4 h-4 text-slate-300 group-hover/btn:text-slate-600" />
             </button>
           </div>
         </div>
       </div>
+    </div>
+  );
+};
 
-      <style>{`
-        @keyframes sleep-breath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08, 1.02); } }
-        @keyframes normal-breath {
+const Sparkles = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 3l.5 2.5L8 6l-2.5.5L5 9l-.5-2.5L2 6l2.5-.5L5 3zM19 15l.5 2.5L22 18l-2.5.5L19 21l-.5-2.5L16 18l2.5-.5L19 15zM14 7l1 4 4 1-4 1-1 4-1-4-4-1 4-1 1-4z" />
+  </svg>
+);
+
+export default FloatingWidget;
