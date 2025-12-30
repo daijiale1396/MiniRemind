@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Bell, Calendar, CheckCircle2, Clock, Plus, Search, Trash2, ShieldCheck, Minimize2, Activity, X, Minus, Square } from 'lucide-react';
+import { Bell, Calendar, CheckCircle2, Clock, Plus, Search, ShieldCheck, Minimize2, Activity, X, Minus, Square } from 'lucide-react';
 import { Reminder, Priority, HealthGoal, WidgetTheme } from './types';
 import ReminderCard from './components/ReminderCard';
 import ReminderModal from './components/ReminderModal';
@@ -17,6 +17,7 @@ declare global {
     electronAPI?: {
       sendNotification: (data: { title: string; body: string }) => void;
       controlWindow: (command: 'minimize' | 'maximize' | 'close') => void;
+      setWindowMode: (mode: 'widget' | 'main') => void;
     };
   }
 }
@@ -40,29 +41,43 @@ const App: React.FC = () => {
   const remindersRef = useRef(reminders);
   useEffect(() => { remindersRef.current = reminders; }, [reminders]);
 
+  // 修改窗口控制函数
+  const handleWindowControl = (cmd: 'minimize' | 'maximize' | 'close') => {
+    if (!window.electronAPI) return;
+
+    if (cmd === 'minimize') {
+      // 点击最小化按键：进入桌面悬浮模式
+      setIsFloating(true);
+      window.electronAPI.setWindowMode('widget');
+    } else {
+      window.electronAPI.controlWindow(cmd);
+    }
+  };
+
+  // 退出悬浮模式回到主界面
+  const handleExitFloating = () => {
+    setIsFloating(false);
+    if (window.electronAPI) {
+      window.electronAPI.setWindowMode('main');
+    }
+  };
+
   const triggerSystemNotification = useCallback((reminder: Reminder) => {
     const title = `⏰ ${reminder.title}`;
     const body = reminder.mode === 'interval' 
-      ? `每 ${reminder.intervalMinutes} 分钟一次` 
-      : '提醒时间到啦！';
+      ? `提醒时间到啦！(每 ${reminder.intervalMinutes} 分钟)` 
+      : '提醒时间到啦，该动身处理啦！';
     
     if (window.electronAPI) {
       window.electronAPI.sendNotification({ title, body });
     }
   }, []);
 
-  const handleWindowControl = (cmd: 'minimize' | 'maximize' | 'close') => {
-    if (window.electronAPI) {
-      window.electronAPI.controlWindow(cmd);
-    } else {
-      console.warn('Electron API 不可用，请在打包后的环境中运行');
-    }
-  };
-
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
   }, [reminders]);
 
+  // 提醒检测计时器
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -82,8 +97,7 @@ const App: React.FC = () => {
         } else if (r.mode === 'interval' && r.startTime && r.endTime && r.intervalMinutes) {
           if (currentHHmm >= r.startTime && currentHHmm <= r.endTime) {
             const lastReference = r.lastTriggeredAt || r.createdAt;
-            const diffMs = nowTs - lastReference;
-            if (diffMs >= r.intervalMinutes * 60000 - 2000) {
+            if (nowTs - lastReference >= r.intervalMinutes * 60000 - 2000) {
               shouldTrigger = true;
             }
           }
@@ -130,23 +144,22 @@ const App: React.FC = () => {
   }, [reminders]);
 
   return (
-    <div className="w-full h-full relative flex flex-col bg-white overflow-hidden text-slate-900 border border-slate-200">
-      {/* 沉浸式自定义标题栏 */}
+    <div className="w-full h-full relative flex flex-col bg-white overflow-hidden text-slate-900">
+      {/* 沉浸式标题栏：这里是处理物理按键的地方 */}
       <header 
         className="h-10 flex items-center justify-between bg-white border-b border-slate-100 shrink-0 z-[1000] select-none"
         style={{ WebkitAppRegion: 'drag' } as any}
       >
         <div className="flex items-center gap-2 pl-4">
            <Bell className="w-4 h-4 text-blue-600" />
-           <span className="text-xs font-black text-slate-500 tracking-tight">微提醒 Pro</span>
+           <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">MiniRemind Pro</span>
         </div>
         
-        {/* 控制按钮区域必须设置为 no-drag 否则点击无效 */}
         <div className="flex h-full" style={{ WebkitAppRegion: 'no-drag' } as any}>
-          <button onClick={() => handleWindowControl('minimize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-50 text-slate-400 transition-colors">
+          <button onClick={() => handleWindowControl('minimize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors">
             <Minus className="w-4 h-4" />
           </button>
-          <button onClick={() => handleWindowControl('maximize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-50 text-slate-400 transition-colors">
+          <button onClick={() => handleWindowControl('maximize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors">
             <Square className="w-3.5 h-3.5" />
           </button>
           <button onClick={() => handleWindowControl('close')} className="w-12 h-full flex items-center justify-center hover:bg-red-500 hover:text-white text-slate-400 transition-colors">
@@ -161,7 +174,7 @@ const App: React.FC = () => {
             reminder={reminders.find(r => !r.isCompleted) || null} 
             theme={widgetTheme}
             setTheme={setWidgetTheme}
-            onExpand={() => setIsFloating(false)} 
+            onExpand={handleExitFloating} 
           />
         ) : (
           <div className="flex w-full h-full bg-[#f8fafc] select-none">
@@ -176,14 +189,6 @@ const App: React.FC = () => {
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Dashboard</p>
                   </div>
                 </div>
-                {/* 点击此处切换至小悬浮窗 */}
-                <button 
-                  onClick={() => setIsFloating(true)} 
-                  className="p-2 hover:bg-slate-50 rounded-lg text-slate-300 transition-colors group relative"
-                  title="切换至桌面小部件"
-                >
-                  <Minimize2 className="w-4 h-4 group-hover:text-blue-600" />
-                </button>
               </div>
 
               <nav className="space-y-1.5 flex-1">
@@ -249,14 +254,6 @@ const App: React.FC = () => {
                         onEdit={() => { setEditingReminder(reminder); setIsModalOpen(true); }}
                       />
                     ))}
-                    {filteredReminders.length === 0 && (
-                       <div className="col-span-full py-24 flex flex-col items-center justify-center text-slate-300">
-                          <div className="bg-slate-50 p-6 rounded-full mb-4">
-                            <Clock className="w-10 h-10 opacity-30" />
-                          </div>
-                          <p className="text-sm font-bold opacity-40">当前分类下没有任务</p>
-                       </div>
-                    )}
                   </div>
                 )}
               </div>
