@@ -18,6 +18,7 @@ declare global {
       sendNotification: (data: { title: string; body: string }) => void;
       controlWindow: (command: 'minimize' | 'maximize' | 'close') => void;
       setWindowMode: (mode: 'widget' | 'main') => void;
+      onToggleWidgetMode: (callback: () => void) => void;
     };
   }
 }
@@ -41,25 +42,37 @@ const App: React.FC = () => {
   const remindersRef = useRef(reminders);
   useEffect(() => { remindersRef.current = reminders; }, [reminders]);
 
+  // 处理窗口控制
   const handleWindowControl = (cmd: 'minimize' | 'maximize' | 'close') => {
     if (window.electronAPI) {
       window.electronAPI.controlWindow(cmd);
     }
   };
 
-  const handleEnterFloating = () => {
+  // 进入挂件模式
+  const handleEnterFloating = useCallback(() => {
     setIsFloating(true);
     if (window.electronAPI) {
       window.electronAPI.setWindowMode('widget');
     }
-  };
+  }, []);
 
-  const handleExitFloating = () => {
+  // 退出挂件模式（返回主界面）
+  const handleExitFloating = useCallback(() => {
     setIsFloating(false);
     if (window.electronAPI) {
       window.electronAPI.setWindowMode('main');
     }
-  };
+  }, []);
+
+  // 监听来自 Electron 主进程（托盘菜单）的模式切换指令
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.onToggleWidgetMode(() => {
+        handleEnterFloating();
+      });
+    }
+  }, [handleEnterFloating]);
 
   const triggerSystemNotification = useCallback((reminder: Reminder) => {
     const title = `⏰ 提醒：${reminder.title}`;
@@ -140,30 +153,30 @@ const App: React.FC = () => {
   }, [reminders]);
 
   return (
-    <div className="w-full h-full relative flex flex-col bg-white overflow-hidden text-slate-900 border border-slate-200">
-      <header 
-        className="h-10 flex items-center justify-between bg-white border-b border-slate-100 shrink-0 z-[1000] select-none"
-        style={{ WebkitAppRegion: 'drag' } as any}
-      >
-        <div className="flex items-center gap-2 pl-4">
-           <Bell className="w-4 h-4 text-blue-600" />
-           <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">MiniRemind Pro</span>
-        </div>
-        
-        <div className="flex h-full" style={{ WebkitAppRegion: 'no-drag' } as any}>
-          <button onClick={() => handleWindowControl('minimize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors">
-            <Minus className="w-4 h-4" />
-          </button>
-          {!isFloating && (
+    <div className={`w-full h-full relative flex flex-col overflow-hidden ${isFloating ? 'bg-transparent' : 'bg-white text-slate-900 border border-slate-200'}`}>
+      {!isFloating && (
+        <header 
+          className="h-10 flex items-center justify-between bg-white border-b border-slate-100 shrink-0 z-[1000] select-none"
+          style={{ WebkitAppRegion: 'drag' } as any}
+        >
+          <div className="flex items-center gap-2 pl-4">
+             <Bell className="w-4 h-4 text-blue-600" />
+             <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">MiniRemind Pro</span>
+          </div>
+          
+          <div className="flex h-full" style={{ WebkitAppRegion: 'no-drag' } as any}>
+            <button onClick={() => handleWindowControl('minimize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors">
+              <Minus className="w-4 h-4" />
+            </button>
             <button onClick={() => handleWindowControl('maximize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors">
               <Square className="w-3.5 h-3.5" />
             </button>
-          )}
-          <button onClick={() => handleWindowControl('close')} className="w-12 h-full flex items-center justify-center hover:bg-red-500 hover:text-white text-slate-400 transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
+            <button onClick={() => handleWindowControl('close')} className="w-12 h-full flex items-center justify-center hover:bg-red-500 hover:text-white text-slate-400 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+      )}
 
       <div className="flex-1 flex min-h-0 relative">
         {isFloating ? (
@@ -213,7 +226,7 @@ const App: React.FC = () => {
                   onClick={handleEnterFloating}
                   className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold shadow-lg hover:bg-black transition-all"
                 >
-                  <Activity className="w-4 h-4" /> 开启猫咪挂件
+                  <Activity className="w-4 h-4" /> 开启桌面挂件
                 </button>
               </div>
 

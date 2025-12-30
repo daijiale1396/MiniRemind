@@ -13,6 +13,7 @@ function createWindow() {
     frame: false, 
     transparent: true,
     show: true,
+    icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -20,14 +21,12 @@ function createWindow() {
     },
   });
 
-  // 开发环境下使用 Vite 地址，生产环境下加载打包后的文件
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   }
 
-  // 重要：拦截关闭事件，改为隐藏
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -41,37 +40,52 @@ function createWindow() {
 function createTray() {
   if (tray) return;
 
-  // 创建占位图标，建议后续在项目根目录放一个 32x32 的 icon.png
-  let iconPath = path.join(__dirname, 'icon.png');
-  const icon = nativeImage.createFromPath(iconPath).isEmpty() 
-    ? nativeImage.createEmpty() 
-    : iconPath;
+  // 尝试加载本地图标，若无则使用一个简单的蓝色圆点 Base64 作为保底
+  const iconPath = path.join(__dirname, 'icon.png');
+  let icon = nativeImage.createFromPath(iconPath);
+  
+  if (icon.isEmpty()) {
+    // 保底：一个简单的蓝色方块图标 (Base64)
+    icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAlUlEQVR42mNkYGD4D8RAnJmByYAKGFAVMDD8Z2RgYPyPTYFBAQMjAxT8/08pALmS8T82BQYFDIwMUADiAnIFjAxgS8D6Gf9jU2BQwMDIAAUvGf9jU8DAyAAFv5mYGP7D9TMwMDAw/IdrYGBkYPiPTQEDAwMU/GZiYvgP18/AwMDA8B+ugYGRgeE/NgUMDAxQ8J8ZiwIApBIsC0Ym7qsAAAAASUVORK5CYII=');
+  }
     
   tray = new Tray(icon);
-  tray.setToolTip('微提醒 Pro - 正在运行');
+  tray.setToolTip('微提醒 Pro');
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: '打开主界面', click: () => mainWindow.show() },
-    { label: '挂件模式', click: () => {
-      mainWindow.show();
-      mainWindow.webContents.send('toggle-widget-mode');
-    }},
+    { 
+      label: '打开主界面', 
+      click: () => {
+        mainWindow.show();
+        mainWindow.focus();
+      } 
+    },
+    { 
+      label: '进入挂件模式', 
+      click: () => {
+        mainWindow.show();
+        // 通知渲染进程切换到挂件 UI
+        mainWindow.webContents.send('toggle-widget-mode');
+      } 
+    },
     { type: 'separator' },
-    { label: '彻底退出', click: () => {
-      isQuitting = true;
-      app.quit();
-    }}
+    { 
+      label: '彻底退出', 
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      } 
+    }
   ]);
 
   tray.setContextMenu(contextMenu);
   
-  // 双击托盘显示窗口
   tray.on('double-click', () => {
     mainWindow.show();
+    mainWindow.focus();
   });
 }
 
-// 监听渲染进程的窗口控制指令
 ipcMain.on('control-window', (event, command) => {
   if (!mainWindow) return;
   if (command === 'minimize') mainWindow.minimize();
@@ -80,18 +94,17 @@ ipcMain.on('control-window', (event, command) => {
     else mainWindow.maximize();
   }
   else if (command === 'close') {
-    mainWindow.hide(); // 点击 UI 上的 X 也是隐藏
+    mainWindow.hide();
   }
 });
 
-// 处理挂件模式与主模式切换
 ipcMain.on('set-window-mode', (event, mode) => {
   if (!mainWindow) return;
   if (mode === 'widget') {
     mainWindow.setSize(240, 160);
     mainWindow.setAlwaysOnTop(true);
     mainWindow.setResizable(false);
-    mainWindow.setSkipTaskbar(true); // 挂件不显示在任务栏
+    mainWindow.setSkipTaskbar(true); 
     
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
@@ -105,10 +118,14 @@ ipcMain.on('set-window-mode', (event, mode) => {
   }
 });
 
-// 发送系统级通知
 ipcMain.on('send-notification', (event, { title, body }) => {
   if (Notification.isSupported()) {
-    new Notification({ title, body, silent: false }).show();
+    new Notification({ 
+      title, 
+      body, 
+      icon: path.join(__dirname, 'icon.png'),
+      silent: false 
+    }).show();
   }
 });
 
