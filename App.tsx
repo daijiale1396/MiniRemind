@@ -37,14 +37,19 @@ const App: React.FC = () => {
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [activeAlert, setActiveAlert] = useState<Reminder | null>(null);
 
-  // 重要：使用 Ref 解决定时器闭包导致的时间获取不到/ reminders 不更新问题
   const remindersRef = useRef(reminders);
   useEffect(() => { remindersRef.current = reminders; }, [reminders]);
 
+  // 调用原生 Windows 通知
   const triggerSystemNotification = useCallback((reminder: Reminder) => {
-    const title = `⏰ 提醒：${reminder.title}`;
-    const body = reminder.mode === 'interval' ? '周期任务时间到啦！' : '预定任务时间到啦！';
-    window.electronAPI?.sendNotification({ title, body });
+    const title = `⏰ ${reminder.title}`;
+    const body = reminder.mode === 'interval' 
+      ? `周期任务：每 ${reminder.intervalMinutes} 分钟一次` 
+      : '预定任务时间到了，请处理。';
+    
+    if (window.electronAPI) {
+      window.electronAPI.sendNotification({ title, body });
+    }
   }, []);
 
   const handleWindowControl = (cmd: 'minimize' | 'maximize' | 'close') => {
@@ -68,14 +73,16 @@ const App: React.FC = () => {
         
         if (r.mode === 'once') {
           const rTime = new Date(r.time);
-          // 容错范围：当前分钟内且未触发过
-          if (nowTs >= rTime.getTime() && (nowTs - rTime.getTime() < 60000) && !r.lastTriggeredAt) shouldTrigger = true;
+          if (nowTs >= rTime.getTime() && (nowTs - rTime.getTime() < 60000) && !r.lastTriggeredAt) {
+            shouldTrigger = true;
+          }
         } else if (r.mode === 'interval' && r.startTime && r.endTime && r.intervalMinutes) {
           if (currentHHmm >= r.startTime && currentHHmm <= r.endTime) {
             const lastReference = r.lastTriggeredAt || r.createdAt;
             const diffMs = nowTs - lastReference;
-            // 达到间隔时间
-            if (diffMs >= r.intervalMinutes * 60000 - 2000) shouldTrigger = true;
+            if (diffMs >= r.intervalMinutes * 60000 - 2000) {
+              shouldTrigger = true;
+            }
           }
         }
 
@@ -115,32 +122,32 @@ const App: React.FC = () => {
       { category: 'water', label: '每日饮水', target: 8, current: getCount('water') },
       { category: 'stretch', label: '起身活动', target: 4, current: getCount('stretch') },
       { category: 'eye', label: '护眼频率', target: 6, current: getCount('eye') },
-      { category: 'break', label: '午间/晚间休息', target: 2, current: getCount('break') },
+      { category: 'break', label: '休息小憩', target: 2, current: getCount('break') },
     ];
   }, [reminders]);
 
   return (
-    <div className="w-full h-full relative flex flex-col bg-white overflow-hidden">
-      {/* 沉浸式标题栏：这里是关键，-webkit-app-region: drag 让它可以被拖动 */}
+    <div className="w-full h-full relative flex flex-col bg-white overflow-hidden text-slate-900 border border-slate-200">
+      {/* 沉浸式标题栏：WebkitAppRegion 让这一块区域可以拖动整个 App */}
       <header 
-        className="h-10 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-black/5 shrink-0 z-[1000] select-none"
+        className="h-10 flex items-center justify-between bg-white border-b border-slate-100 shrink-0 z-[1000] select-none"
         style={{ WebkitAppRegion: 'drag' } as any}
       >
         <div className="flex items-center gap-2 pl-4">
-           <Bell className="w-3.5 h-3.5 text-blue-600" />
-           <span className="text-[11px] font-bold text-slate-500 tracking-tight">微提醒 Pro</span>
+           <Bell className="w-4 h-4 text-blue-600" />
+           <span className="text-xs font-black text-slate-500 tracking-tight">微提醒 Pro</span>
         </div>
         
         {/* 控制按钮区域必须设置为 no-drag 否则点击无效 */}
         <div className="flex h-full" style={{ WebkitAppRegion: 'no-drag' } as any}>
-          <button onClick={() => handleWindowControl('minimize')} className="w-11 h-full flex items-center justify-center hover:bg-black/5 text-slate-400 transition-colors">
-            <Minus className="w-3.5 h-3.5" />
+          <button onClick={() => handleWindowControl('minimize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-50 text-slate-400 transition-colors">
+            <Minus className="w-4 h-4" />
           </button>
-          <button onClick={() => handleWindowControl('maximize')} className="w-11 h-full flex items-center justify-center hover:bg-black/5 text-slate-400 transition-colors">
-            <Square className="w-3 h-3" />
+          <button onClick={() => handleWindowControl('maximize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-50 text-slate-400 transition-colors">
+            <Square className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => handleWindowControl('close')} className="w-11 h-full flex items-center justify-center hover:bg-red-500 hover:text-white text-slate-400 transition-colors">
-            <X className="w-3.5 h-3.5" />
+          <button onClick={() => handleWindowControl('close')} className="w-12 h-full flex items-center justify-center hover:bg-red-500 hover:text-white text-slate-400 transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
       </header>
@@ -154,66 +161,69 @@ const App: React.FC = () => {
             onExpand={() => setIsFloating(false)} 
           />
         ) : (
-          <div className="flex w-full h-full bg-[#f9fafb] text-slate-900 select-none">
-            <aside className="w-60 flex flex-col border-r border-black/5 p-5 shrink-0 bg-white shadow-sm">
-              <div className="flex items-center justify-between mb-8 px-1">
+          <div className="flex w-full h-full bg-[#f8fafc] select-none">
+            <aside className="w-64 flex flex-col border-r border-slate-200/60 p-6 shrink-0 bg-white">
+              <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/20">
-                    <Bell className="w-4 h-4 text-white" />
+                  <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-600/20">
+                    <Bell className="w-5 h-5 text-white" />
                   </div>
-                  <h1 className="font-black text-sm text-slate-800">控制台</h1>
+                  <div>
+                    <h1 className="font-bold text-sm">工作台</h1>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Dashboard</p>
+                  </div>
                 </div>
-                <button onClick={() => setIsFloating(true)} className="p-1.5 hover:bg-black/5 rounded-lg text-slate-300 transition-colors">
-                  <Minimize2 className="w-3.5 h-3.5" />
+                <button onClick={() => setIsFloating(true)} className="p-2 hover:bg-slate-50 rounded-lg text-slate-300 transition-colors">
+                  <Minimize2 className="w-4 h-4" />
                 </button>
               </div>
 
-              <nav className="space-y-1 flex-1">
+              <nav className="space-y-1.5 flex-1">
                 {[
                   { id: 'upcoming', label: '正在进行', icon: Clock },
                   { id: 'health', label: '健康看板', icon: Activity },
                   { id: 'all', label: '所有提醒', icon: Calendar },
-                  { id: 'completed', label: '任务归档', icon: CheckCircle2 }
+                  { id: 'completed', label: '历史归档', icon: CheckCircle2 }
                 ].map(item => (
                   <button
                     key={item.id}
                     onClick={() => setActiveFilter(item.id as any)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                      activeFilter === item.id ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50'
+                      activeFilter === item.id ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100/50' : 'text-slate-500 hover:bg-slate-50'
                     }`}
                   >
-                    <item.icon className="w-3.5 h-3.5" />
+                    <item.icon className="w-4 h-4" />
                     {item.label}
                   </button>
                 ))}
               </nav>
 
               <div className="mt-auto">
-                <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                  <p className="text-[10px] font-bold">本地运行，隐私无忧</p>
+                <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 flex items-center gap-3">
+                  <ShieldCheck className="w-5 h-5 shrink-0 opacity-70" />
+                  <p className="text-[11px] font-bold leading-tight">提醒服务已在后台<br/>加密运行中</p>
                 </div>
               </div>
             </aside>
 
             <main className="flex-1 flex flex-col bg-white overflow-hidden">
-              <header className="px-8 py-6 flex items-center justify-between border-b border-black/5">
+              <header className="px-8 py-6 flex items-center justify-between border-b border-slate-100">
                 <div className="flex-1 max-w-xs relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                   <input 
                     type="text" 
-                    placeholder="搜索任务..."
-                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/10 transition-all"
+                    placeholder="搜寻你的计划..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/10 transition-all"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
                 <button 
                   onClick={() => { setEditingReminder(null); setIsModalOpen(true); }}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition-all"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-blue-600/25 hover:bg-blue-700 active:scale-95 transition-all"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  添加任务
+                  <Plus className="w-4 h-4" />
+                  新建任务
                 </button>
               </header>
 
@@ -232,9 +242,11 @@ const App: React.FC = () => {
                       />
                     ))}
                     {filteredReminders.length === 0 && (
-                       <div className="col-span-full py-20 flex flex-col items-center justify-center text-slate-300">
-                          <Clock className="w-12 h-12 mb-3 opacity-20" />
-                          <p className="text-sm font-bold opacity-30">暂无待办任务</p>
+                       <div className="col-span-full py-24 flex flex-col items-center justify-center text-slate-300">
+                          <div className="bg-slate-50 p-6 rounded-full mb-4">
+                            <Clock className="w-10 h-10 opacity-30" />
+                          </div>
+                          <p className="text-sm font-bold opacity-40">当前分类下没有任务</p>
                        </div>
                     )}
                   </div>
