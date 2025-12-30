@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Maximize2, Bell, Droplets, Move, Eye, Coffee, Palette } from 'lucide-react';
 import { Reminder, WidgetTheme } from '../types';
 
@@ -11,54 +11,35 @@ interface FloatingWidgetProps {
 }
 
 const THEMES: Record<WidgetTheme, string> = {
-  glass: 'bg-white/80 backdrop-blur-xl border-white text-slate-800 shadow-2xl ring-4 ring-black/5',
-  cyber: 'bg-slate-900 border-cyan-500 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.5)] border-2 ring-2 ring-cyan-500/20',
-  retro: 'bg-[#c0c0c0] border-t-white border-l-white border-b-gray-800 border-r-gray-800 border-[3px] text-black font-mono shadow-[4px_4px_0_rgba(0,0,0,0.5)]',
-  sakura: 'bg-rose-50 border-rose-200 text-rose-600 shadow-lg shadow-rose-200/50 border-2 ring-4 ring-rose-100',
+  glass: 'bg-white/70 backdrop-blur-2xl border-white/40 text-slate-800 shadow-[0_8px_32px_rgba(0,0,0,0.1)] ring-1 ring-black/5',
+  cyber: 'bg-slate-900/80 backdrop-blur-xl border-cyan-500/50 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)]',
+  retro: 'bg-[#d0d0d0] border-[3px] border-t-white border-l-white border-r-gray-700 border-b-gray-700 text-black font-mono',
+  sakura: 'bg-rose-50/80 backdrop-blur-xl border-rose-200 text-rose-500 shadow-lg shadow-rose-200/40',
 };
 
 const FloatingWidget: React.FC<FloatingWidgetProps> = ({ reminder, theme, setTheme, onExpand }) => {
   const [timeLeft, setTimeLeft] = useState<string>('--:--');
-  const [catPose, setCatPose] = useState<'sleep' | 'nap' | 'alert'>('sleep');
+  const [isBlinking, setIsBlinking] = useState(false);
   
-  // 拖拽逻辑状态
-  const [position, setPosition] = useState({ x: window.innerWidth - 260, y: window.innerHeight - 150 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [isSnapping, setIsSnapping] = useState(false);
-  const dragStartPos = useRef({ x: 0, y: 0 });
-  const widgetRef = useRef<HTMLDivElement>(null);
+  // 随机眨眼逻辑
+  useEffect(() => {
+    const blinkInterval = setInterval(() => {
+      setIsBlinking(true);
+      setTimeout(() => setIsBlinking(false), 150);
+    }, 4000 + Math.random() * 3000);
+    return () => clearInterval(blinkInterval);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      if (!reminder) {
-        setTimeLeft('--:--');
-        setCatPose('sleep');
-        return;
-      }
-
-      const now = new Date().getTime();
-      let target: number;
-      if (reminder.mode === 'once') {
-        target = new Date(reminder.time).getTime();
-      } else {
-        const interval = (reminder.intervalMinutes || 30) * 60000;
-        const last = reminder.lastTriggeredAt || reminder.createdAt;
-        target = last + interval;
-      }
-
+      if (!reminder) { setTimeLeft('--:--'); return; }
+      const now = Date.now();
+      const target = reminder.mode === 'once' 
+        ? new Date(reminder.time).getTime() 
+        : (reminder.lastTriggeredAt || reminder.createdAt) + (reminder.intervalMinutes || 30) * 60000;
       const diff = target - now;
-      
-      if (diff > 0 && diff < 60000) {
-        setCatPose('alert'); 
-      } else if (diff >= 60000 && diff < 300000) {
-        setCatPose('nap'); 
-      } else {
-        setCatPose('sleep'); 
-      }
-
-      if (diff <= 0) {
-        setTimeLeft('!!!');
-      } else {
+      if (diff <= 0) { setTimeLeft('!!!'); }
+      else {
         const mins = Math.floor(diff / 60000);
         const secs = Math.floor((diff % 60000) / 1000);
         setTimeLeft(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
@@ -67,79 +48,10 @@ const FloatingWidget: React.FC<FloatingWidgetProps> = ({ reminder, theme, setThe
     return () => clearInterval(timer);
   }, [reminder]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
-    setIsDragging(true);
-    setIsSnapping(false);
-    dragStartPos.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    };
-  };
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      const newX = e.clientX - dragStartPos.current.x;
-      const newY = e.clientY - dragStartPos.current.y;
-      
-      // 允许稍微超出边界以便更好的拖拽感，实际吸附在 MouseUp 处理
-      const boundedX = Math.max(-50, Math.min(window.innerWidth - 150, newX));
-      const boundedY = Math.max(40, Math.min(window.innerHeight - 80, newY));
-      setPosition({ x: boundedX, y: boundedY });
-    };
-
-    const handleMouseUp = () => {
-      if (!isDragging) return;
-      setIsDragging(false);
-      setIsSnapping(true);
-
-      // 吸附逻辑
-      const threshold = 80; // 吸附阈值
-      let finalX = position.x;
-      let finalY = position.y;
-
-      // 屏幕尺寸
-      const screenW = window.innerWidth;
-      const screenH = window.innerHeight;
-      const widgetW = 200; // 大致宽度
-      const widgetH = 80;  // 大致高度
-
-      // 水平吸附
-      if (finalX < threshold) {
-        finalX = 16; // 贴左边
-      } else if (finalX > screenW - widgetW - threshold) {
-        finalX = screenW - widgetW - 16; // 贴右边
-      }
-
-      // 垂直吸附
-      if (finalY < threshold + 40) {
-        finalY = 56; // 贴顶
-      } else if (finalY > screenH - widgetH - threshold) {
-        finalY = screenH - widgetH - 16; // 贴底
-      }
-
-      setPosition({ x: finalX, y: finalY });
-      
-      // 动画结束后关闭吸附状态
-      setTimeout(() => setIsSnapping(false), 300);
-    };
-
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, position]);
-
-  const toggleTheme = () => {
-    const themeList: WidgetTheme[] = ['glass', 'cyber', 'retro', 'sakura'];
-    const nextIndex = (themeList.indexOf(theme) + 1) % themeList.length;
-    setTheme(themeList[nextIndex]);
-  };
+  const catColor = useMemo(() => {
+    const colors = { glass: '#64748b', cyber: '#22d3ee', retro: '#4b5563', sakura: '#fb7185' };
+    return colors[theme];
+  }, [theme]);
 
   const icons: any = {
     water: <Droplets className="w-4 h-4" />,
@@ -149,166 +61,73 @@ const FloatingWidget: React.FC<FloatingWidgetProps> = ({ reminder, theme, setThe
     general: <Bell className="w-4 h-4" />,
   };
 
-  const catColors: Record<WidgetTheme, string> = {
-    glass: '#475569',
-    cyber: '#06b6d4',
-    retro: '#404040',
-    sakura: '#fb7185',
-  };
-
   return (
-    <div 
-      ref={widgetRef}
-      style={{ left: position.x, top: position.y }}
-      onMouseDown={handleMouseDown}
-      className={`fixed z-[200] group select-none ${
-        isSnapping ? 'transition-all duration-300 ease-out' : 'transition-none'
-      } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-    >
-      {/* 猫咪容器 */}
-      <div className={`absolute -top-[42px] left-6 transition-all duration-700 pointer-events-none ${catPose === 'alert' ? 'scale-110 -translate-y-1' : 'scale-100'}`}>
-        <svg width="80" height="45" viewBox="0 0 80 45" fill="none" xmlns="http://www.w3.org/2000/svg" className="overflow-visible drop-shadow-md relative z-10">
-          {catPose === 'sleep' && (
-            <g className="animate-breathing origin-bottom">
-              <rect x="10" y="15" width="50" height="30" rx="20" fill={catColors[theme]} />
-              <circle cx="20" cy="20" r="10" fill={catColors[theme]} />
-              <path d="M12 14L15 6L20 12" stroke={catColors[theme]} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M25 12L30 6L33 14" stroke={catColors[theme]} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M16 22C17 23 20 23 21 22" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-              <path d="M25 22C26 23 29 23 30 22" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-              <path d="M55 35C65 35 70 28 68 20" stroke={catColors[theme]} strokeWidth="6" strokeLinecap="round" className="animate-tail-float" />
-            </g>
-          )}
-
-          {catPose === 'nap' && (
-            <g className="animate-nap-sway origin-bottom">
-              <rect x="5" y="20" width="60" height="25" rx="12" fill={catColors[theme]} />
-              <circle cx="60" cy="25" r="12" fill={catColors[theme]} />
-              <path d="M52 18L55 8L60 16" stroke={catColors[theme]} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M65 16L70 8L73 18" stroke={catColors[theme]} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M56 26C57 27 60 27 61 26" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-              <path d="M66 26C67 27 70 27 71 26" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-              <path d="M15 42V48" stroke={catColors[theme]} strokeWidth="6" strokeLinecap="round" />
-              <circle cx="15" cy="48" r="2" fill="white" opacity="0.4" />
-              <path d="M5 35C-5 35 -10 25 -8 15" stroke={catColors[theme]} strokeWidth="6" strokeLinecap="round" className="animate-tail-wag-left" />
-            </g>
-          )}
-
-          {catPose === 'alert' && (
+    <div className="w-full h-full flex flex-col items-center justify-center select-none relative animate-in fade-in zoom-in-95 duration-500">
+      {/* 核心猫咪形象 - 稍微居中调整 */}
+      <div className="relative mb-[-6px] z-10">
+        <svg width="100" height="60" viewBox="0 0 100 60" className="drop-shadow-lg overflow-visible">
+          {/* 身体 */}
+          <rect x="20" y="20" width="60" height="40" rx="25" fill={catColor} className="animate-breathing origin-bottom" />
+          {/* 耳朵 */}
+          <path d="M30 22 L22 10 L38 20 Z" fill={catColor} className="animate-ear-twitch" />
+          <path d="M70 22 L78 10 L62 20 Z" fill={catColor} />
+          {/* 眼睛 */}
+          {!isBlinking ? (
             <g>
-              <path d="M20 45C20 20 30 10 50 10C65 10 70 25 70 45H20Z" fill={catColors[theme]} />
-              <path d="M42 12L46 2L52 12H42Z" fill={catColors[theme]} className="animate-ear-twitch" />
-              <path d="M60 12L64 2L70 12H60Z" fill={catColors[theme]} />
-              <circle cx="48" cy="25" r="5" fill="white" />
-              <circle cx="62" cy="25" r="5" fill="white" />
-              <circle cx="48" cy="25" r="2.5" fill="black" className="animate-pupil" />
-              <circle cx="62" cy="25" r="2.5" fill="black" className="animate-pupil" />
-              <path d="M40 32H30M40 35H31" stroke="white" strokeWidth="1" opacity="0.4" />
-              <path d="M70 32H80M70 35H79" stroke="white" strokeWidth="1" opacity="0.4" />
-              <path d="M70 40C80 40 85 30 82 15" stroke={catColors[theme]} strokeWidth="6" strokeLinecap="round" className="animate-tail-alert" />
+              <circle cx="42" cy="35" r="3.5" fill="white" />
+              <circle cx="58" cy="35" r="3.5" fill="white" />
+              <circle cx="42" cy="35" r="1.5" fill="black" />
+              <circle cx="58" cy="35" r="1.5" fill="black" />
+            </g>
+          ) : (
+            <g>
+              <line x1="38" y1="35" x2="46" y2="35" stroke="white" strokeWidth="2" strokeLinecap="round" />
+              <line x1="54" y1="35" x2="62" y2="35" stroke="white" strokeWidth="2" strokeLinecap="round" />
             </g>
           )}
+          {/* 腮红 */}
+          <circle cx="35" cy="42" r="3" fill="#fda4af" opacity="0.4" />
+          <circle cx="65" cy="42" r="3" fill="#fda4af" opacity="0.4" />
+          {/* 尾巴 */}
+          <path d="M80 45 C95 45 95 30 90 20" stroke={catColor} strokeWidth="8" strokeLinecap="round" className="animate-tail-wag origin-left" />
         </svg>
-
-        {/* 逐个飘散的 Zzz 动画容器 - 移出 SVG 以便正常渲染 HTML */}
-        {catPose !== 'alert' && (
-           <div 
-             className={`absolute transition-all duration-500 pointer-events-none z-20`}
-             style={{ 
-               left: catPose === 'sleep' ? '20px' : '65px', 
-               top: catPose === 'sleep' ? '5px' : '10px' 
-             }}
-           >
-              <span className="absolute text-[12px] font-bold text-slate-400 opacity-0 animate-zzz-float-1">Z</span>
-              <span className="absolute text-[10px] font-bold text-slate-400 opacity-0 animate-zzz-float-2">z</span>
-              <span className="absolute text-[8px] font-bold text-slate-400 opacity-0 animate-zzz-float-3">z</span>
-           </div>
-        )}
       </div>
 
-      {/* 悬浮窗主体 */}
-      <div className={`relative transition-all duration-300 rounded-full p-2 pl-4 flex items-center gap-3 ${THEMES[theme]} ${isDragging ? 'scale-105 shadow-inner' : 'shadow-2xl'}`}>
-        <div className="flex items-center gap-2 pr-2 border-r border-current/20">
-          <div className={`${catPose === 'alert' ? 'animate-bounce' : ''}`}>
-             {reminder ? icons[reminder.category] : <Bell className="w-4 h-4 opacity-50" />}
-          </div>
-          <div className="flex flex-col min-w-[55px]">
-            <span className={`text-[9px] font-black uppercase leading-none opacity-60 ${theme === 'retro' ? 'font-mono' : ''}`}>
-              {timeLeft === '!!!' ? 'TIME UP' : 'NEXT'}
-            </span>
-            <span className={`text-xs font-black tabular-nums ${theme === 'retro' ? 'font-mono' : ''}`}>{timeLeft}</span>
+      {/* 挂件主体卡片 */}
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-3xl border ${THEMES[theme]} transition-all duration-300`}>
+        <div className="flex items-center gap-2 pr-3 border-r border-current/10">
+          <div className="text-current/80">{reminder ? icons[reminder.category] : icons.general}</div>
+          <div className="flex flex-col leading-none">
+            <span className="text-[8px] font-black opacity-40 mb-1">TIMER</span>
+            <span className="text-sm font-black tabular-nums">{timeLeft}</span>
           </div>
         </div>
         
-        <div className="flex items-center gap-1">
-          <button 
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); toggleTheme(); }}
-            className="p-1.5 hover:bg-black/10 rounded-full transition-colors"
-          >
-            <Palette className="w-3 h-3" />
-          </button>
-          <button 
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); onExpand(); }}
-            className={`p-2 rounded-full shadow-lg transition-all active:scale-90 ${
-              theme === 'cyber' ? 'bg-cyan-500 text-slate-900 shadow-cyan-500/30' : 
-              theme === 'retro' ? 'bg-[#c0c0c0] border-t-white border-l-white border-b-gray-800 border-r-gray-800 border-2 text-black' : 
-              theme === 'sakura' ? 'bg-rose-500 text-white shadow-rose-500/30' : 'bg-blue-600 text-white shadow-blue-500/30'
-            }`}
-          >
-            <Maximize2 className="w-3 h-3" />
-          </button>
+        <div className="flex gap-1.5">
+          <button onClick={() => {
+            const list: WidgetTheme[] = ['glass', 'cyber', 'retro', 'sakura'];
+            setTheme(list[(list.indexOf(theme) + 1) % list.length]);
+          }} className="p-1.5 hover:bg-black/5 rounded-full outline-none"><Palette className="w-3.5 h-3.5 opacity-60" /></button>
+          <button onClick={onExpand} className="p-1.5 bg-blue-600/10 text-blue-600 rounded-full hover:bg-blue-600/20 outline-none"><Maximize2 className="w-3.5 h-3.5" /></button>
         </div>
       </div>
 
       <style>{`
         @keyframes breathing {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.02, 0.98); }
-        }
-        @keyframes nap-sway {
-          0%, 100% { transform: rotate(-1deg) translateY(0); }
-          50% { transform: rotate(1deg) translateY(1px); }
-        }
-        @keyframes tail-float {
-          0%, 100% { transform: rotate(0deg); }
-          50% { transform: rotate(20deg); }
-        }
-        @keyframes tail-wag-left {
-          0%, 100% { transform: rotate(0deg); }
-          50% { transform: rotate(-25deg); }
-        }
-        @keyframes tail-alert {
-          0%, 100% { transform: rotate(0deg); }
-          50% { transform: rotate(35deg); }
+          0%, 100% { transform: scaleY(1); }
+          50% { transform: scaleY(1.05); }
         }
         @keyframes ear-twitch {
-          0%, 90%, 100% { transform: rotate(0deg); }
-          95% { transform: rotate(-15deg); }
+          0%, 90%, 100% { transform: rotate(0); }
+          95% { transform: rotate(-10deg); }
         }
-        @keyframes pupil-move {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(2px, -1px); }
+        @keyframes tail-wag {
+          0%, 100% { transform: rotate(0); }
+          50% { transform: rotate(15deg); }
         }
-        
-        @keyframes zzz-float {
-          0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
-          20% { opacity: 0.8; }
-          80% { opacity: 0.8; }
-          100% { transform: translate(12px, -40px) scale(1.4); opacity: 0; }
-        }
-        .animate-zzz-float-1 { animation: zzz-float 4s infinite linear; }
-        .animate-zzz-float-2 { animation: zzz-float 4s infinite 1.3s linear; }
-        .animate-zzz-float-3 { animation: zzz-float 4s infinite 2.6s linear; }
-
-        .animate-breathing { animation: breathing 3s infinite ease-in-out; }
-        .animate-nap-sway { animation: nap-sway 4s infinite ease-in-out; }
-        .animate-tail-float { transform-origin: left bottom; animation: tail-float 3s infinite ease-in-out; }
-        .animate-tail-wag-left { transform-origin: right bottom; animation: tail-wag-left 2s infinite ease-in-out; }
-        .animate-tail-alert { transform-origin: left bottom; animation: tail-alert 0.5s infinite ease-in-out; }
-        .animate-ear-twitch { transform-origin: bottom; animation: ear-twitch 4s infinite; }
-        .animate-pupil { animation: pupil-move 2s infinite ease-in-out; }
+        .animate-breathing { animation: breathing 4s infinite ease-in-out; }
+        .animate-ear-twitch { animation: ear-twitch 3s infinite; }
+        .animate-tail-wag { animation: tail-wag 2s infinite ease-in-out; }
       `}</style>
     </div>
   );

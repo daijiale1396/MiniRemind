@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Bell, Calendar, CheckCircle2, Clock, Plus, Search, ShieldCheck, Activity, X, Minus, Square } from 'lucide-react';
+import { Bell, Calendar, CheckCircle2, Clock, Plus, Search, ShieldCheck, Activity, X, Minus, Square, Github } from 'lucide-react';
 import { Reminder, Priority, HealthGoal, WidgetTheme } from './types';
 import ReminderCard from './components/ReminderCard';
 import ReminderModal from './components/ReminderModal';
@@ -41,12 +41,9 @@ const App: React.FC = () => {
   const remindersRef = useRef(reminders);
   useEffect(() => { remindersRef.current = reminders; }, [reminders]);
 
-  // 窗口物理控制
   const handleWindowControl = (cmd: 'minimize' | 'maximize' | 'close') => {
     if (window.electronAPI) {
       window.electronAPI.controlWindow(cmd);
-    } else {
-      console.log('Window Control (Browser Mock):', cmd);
     }
   };
 
@@ -144,7 +141,6 @@ const App: React.FC = () => {
 
   return (
     <div className="w-full h-full relative flex flex-col bg-white overflow-hidden text-slate-900 border border-slate-200">
-      {/* 物理拖拽标题栏 */}
       <header 
         className="h-10 flex items-center justify-between bg-white border-b border-slate-100 shrink-0 z-[1000] select-none"
         style={{ WebkitAppRegion: 'drag' } as any}
@@ -158,9 +154,11 @@ const App: React.FC = () => {
           <button onClick={() => handleWindowControl('minimize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors">
             <Minus className="w-4 h-4" />
           </button>
-          <button onClick={() => handleWindowControl('maximize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors">
-            <Square className="w-3.5 h-3.5" />
-          </button>
+          {!isFloating && (
+            <button onClick={() => handleWindowControl('maximize')} className="w-12 h-full flex items-center justify-center hover:bg-slate-100 text-slate-400 transition-colors">
+              <Square className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button onClick={() => handleWindowControl('close')} className="w-12 h-full flex items-center justify-center hover:bg-red-500 hover:text-white text-slate-400 transition-colors">
             <X className="w-4 h-4" />
           </button>
@@ -219,11 +217,21 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              <div className="mt-auto">
+              <div className="mt-auto space-y-4">
                 <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 flex items-center gap-3">
                   <ShieldCheck className="w-5 h-5 shrink-0 opacity-70" />
                   <p className="text-[11px] font-bold leading-tight">提醒服务已在后台<br/>加密运行中</p>
                 </div>
+                {/* 新增 GitHub 链接 */}
+                <a 
+                  href="https://github.com/daijiale1396/MiniRemind" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-1 text-[10px] text-slate-400 hover:text-blue-500 transition-colors font-medium group"
+                >
+                  <Github className="w-3 h-3 opacity-70 group-hover:opacity-100" />
+                  <span>GitHub @daijiale1396</span>
+                </a>
               </div>
             </aside>
 
