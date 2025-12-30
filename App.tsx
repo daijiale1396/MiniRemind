@@ -40,12 +40,11 @@ const App: React.FC = () => {
   const remindersRef = useRef(reminders);
   useEffect(() => { remindersRef.current = reminders; }, [reminders]);
 
-  // 调用原生 Windows 通知
   const triggerSystemNotification = useCallback((reminder: Reminder) => {
     const title = `⏰ ${reminder.title}`;
     const body = reminder.mode === 'interval' 
-      ? `周期任务：每 ${reminder.intervalMinutes} 分钟一次` 
-      : '预定任务时间到了，请处理。';
+      ? `每 ${reminder.intervalMinutes} 分钟一次` 
+      : '提醒时间到啦！';
     
     if (window.electronAPI) {
       window.electronAPI.sendNotification({ title, body });
@@ -53,7 +52,11 @@ const App: React.FC = () => {
   }, []);
 
   const handleWindowControl = (cmd: 'minimize' | 'maximize' | 'close') => {
-    window.electronAPI?.controlWindow(cmd);
+    if (window.electronAPI) {
+      window.electronAPI.controlWindow(cmd);
+    } else {
+      console.warn('Electron API 不可用，请在打包后的环境中运行');
+    }
   };
 
   useEffect(() => {
@@ -128,7 +131,7 @@ const App: React.FC = () => {
 
   return (
     <div className="w-full h-full relative flex flex-col bg-white overflow-hidden text-slate-900 border border-slate-200">
-      {/* 沉浸式标题栏：WebkitAppRegion 让这一块区域可以拖动整个 App */}
+      {/* 沉浸式自定义标题栏 */}
       <header 
         className="h-10 flex items-center justify-between bg-white border-b border-slate-100 shrink-0 z-[1000] select-none"
         style={{ WebkitAppRegion: 'drag' } as any}
@@ -173,8 +176,13 @@ const App: React.FC = () => {
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Dashboard</p>
                   </div>
                 </div>
-                <button onClick={() => setIsFloating(true)} className="p-2 hover:bg-slate-50 rounded-lg text-slate-300 transition-colors">
-                  <Minimize2 className="w-4 h-4" />
+                {/* 点击此处切换至小悬浮窗 */}
+                <button 
+                  onClick={() => setIsFloating(true)} 
+                  className="p-2 hover:bg-slate-50 rounded-lg text-slate-300 transition-colors group relative"
+                  title="切换至桌面小部件"
+                >
+                  <Minimize2 className="w-4 h-4 group-hover:text-blue-600" />
                 </button>
               </div>
 
