@@ -2,10 +2,9 @@
 {
   "name": "miniremind-pro",
   "version": "1.0.0",
-  "type": "commonjs",
-  "main": "main.js",
-  "description": "轻量级桌面定时提醒工具 - 无需登录，本地运行",
-  "author": "MiniRemind Team",
+  "type": "module",
+  "main": "main.cjs",
+  "description": "轻量级桌面定时提醒工具 - ESM 优化版",
   "scripts": {
     "dev": "vite",
     "start": "electron .",
@@ -14,40 +13,26 @@
   },
   "dependencies": {
     "lucide-react": "^0.562.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.0",
     "electron": "^31.0.0",
     "electron-builder": "^24.13.3",
-    "typescript": "^5.0.0",
-    "vite": "^5.0.0"
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.3.0"
   },
   "build": {
     "appId": "com.miniremind.app",
     "productName": "微提醒 Pro",
     "files": [
       "dist/**/*",
-      "main.js",
-      "preload.js",
+      "main.cjs",
+      "preload.cjs",
       "package.json"
     ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
-    },
-    "directories": {
-      "output": "dist_electron"
-    },
-    "asar": true
+      "target": "nsis"
+    }
   }
 }

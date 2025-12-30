@@ -1,5 +1,5 @@
 
-const { app, BrowserWindow, ipcMain, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, screen } = require('electron');
 const path = require('path');
 
 let mainWindow;
@@ -8,36 +8,30 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
-    frame: false, // 无边框
+    frame: false, 
     transparent: true,
-    alwaysOnTop: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      // 关键点：这里必须指向最终的 .cjs 文件
+      preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
 
-  // 加载本地开发服务器或构建后的文件
-  const startUrl = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:5173' 
-    : `file://${path.join(__dirname, 'dist/index.html')}`;
-  
-  mainWindow.loadURL(startUrl);
-
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
+    mainWindow.loadURL('http://localhost:5173');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   }
 }
 
-// IPC 处理
 ipcMain.on('control-window', (event, command) => {
   if (!mainWindow) return;
-  switch (command) {
-    case 'minimize': mainWindow.minimize(); break;
-    case 'maximize': mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize(); break;
-    case 'close': mainWindow.close(); break;
+  if (command === 'minimize') mainWindow.minimize();
+  else if (command === 'maximize') {
+    mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
   }
+  else if (command === 'close') mainWindow.close();
 });
 
 ipcMain.on('set-window-mode', (event, mode) => {
@@ -46,8 +40,6 @@ ipcMain.on('set-window-mode', (event, mode) => {
     mainWindow.setSize(240, 120);
     mainWindow.setAlwaysOnTop(true);
     mainWindow.setResizable(false);
-    // 将窗口移动到右下角
-    const { screen } = require('electron');
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
     mainWindow.setPosition(width - 260, height - 140);
@@ -60,15 +52,13 @@ ipcMain.on('set-window-mode', (event, mode) => {
 });
 
 ipcMain.on('send-notification', (event, { title, body }) => {
-  new Notification({ title, body }).show();
+  if (Notification.isSupported()) {
+    new Notification({ title, body, silent: false }).show();
+  }
 });
 
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
-});
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
